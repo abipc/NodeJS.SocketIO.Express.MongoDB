@@ -6,12 +6,17 @@
  * To change this template use File | Settings | File Templates.
  */
 
+var express     = require('express'), //load express module. 3rd party module. Loaded from node_modules folder.
+    path        = require('path'),
+    fs          = require('fs'),
+    mongodb     = require('./server/services/dbService.js');
 
-var express = require('express'), //load express module. 3rd party module. Loaded from node_modules folder.
-    path = require('path'),
-    fs = require('fs');
+var app = express()
+    , http = require('http')
+    , server = http.createServer(app)
+    , io = require('socket.io').listen(server);
 
-var app = express(); //Use node express module to create an express application.
+server.listen(3000);
 
 app.configure(function(){ //Configure the application
     app.set('env', 'development'); //by default env is set to development only. Change it to production post development.
@@ -37,7 +42,7 @@ app.configure(function(){ //Configure the application
      Connect middleware provides a static file server. Here we are defining static files should be looked under client directory
      so GET /index.html will map to server/html/index.html
      */
-    app.use(express.static(path.join(__dirname, './server/html')));
+    app.use(express.static(path.join(__dirname, './client/html')));
 
     app.use(
         function logErrors(err, req, res, next){
@@ -56,6 +61,49 @@ app.configure(function(){ //Configure the application
     );
 });
 
+var usernames = {};
+
+io.sockets.on('connection', function (socket) {
+
+    // when the client emits 'sendchat', this listens and executes
+    socket.on('sendchat', function (data) {
+        // we tell the client to execute 'updatechat' with 2 parameters
+        io.sockets.emit('updatechat', socket.username, data);
+    });
+
+    // when the client emits 'adduser', this listens and executes
+    socket.on('adduser', function(username){
+        // we store the username in the socket session for this client
+        socket.username = username;
+        // add the client's username to the global list
+        usernames[username] = username;
+        // echo to client they've connected
+        socket.emit('updatechat', 'SERVER', 'you have connected');
+        // echo globally (all clients) that a person has connected
+        socket.broadcast.emit('updatechat', 'SERVER', username + ' has connected');
+        // update the list of users in chat, client-side
+        io.sockets.emit('updateusers', usernames);
+    });
+
+    // when the user disconnects.. perform this
+    socket.on('disconnect', function(){
+        // remove the username from global usernames list
+        delete usernames[socket.username];
+        // update list of users in chat, client-side
+        io.sockets.emit('updateusers', usernames);
+        // echo globally that this client has left
+        socket.broadcast.emit('updatechat', 'SERVER', socket.username + ' has disconnected');
+    });
+});
+
+//app.get('/', function (req, res) {
+//    res.sendfile(__dirname + '/index.html');
+//});
+
+app.get('/userPreferences/userId', function(){
+    mongodb.dbClient.getUserPreferences();
+});
+
 app.configure('development', function(){ //This configuration will run only for development environment
     app.use(express.errorHandler());
 });
@@ -63,6 +111,64 @@ app.configure('development', function(){ //This configuration will run only for 
 app.configure('production', function(){ //This configuraiton will run only for production environment
 });
 
-app.listen(app.get('port'), function() {
-    console.log("Server started");
-});
+//app.listen(app.get('port'), function() {
+//    console.log("Server started");
+//});
+
+
+
+//io.sockets.on('connection', function (socket) {
+//    socket.emit('news', { hello: 'world' });
+//    socket.on('my other event', function (data) {
+//        console.log(data);
+//    });
+//});
+
+//var express = require('express')
+//    , http = require('http');
+//
+//var app = express();
+//var server = http.createServer(app);
+//var io = require('socket.io').listen(server);
+//
+//server.listen(8000);
+
+// routing
+//app.get('/', function (req, res) {
+//    res.sendfile(__dirname + '/index.html');
+//});
+// usernames which are currently connected to the chat
+//var usernames = {};
+//
+//io.sockets.on('connection', function (socket) {
+//
+//    // when the client emits 'sendchat', this listens and executes
+//    socket.on('sendchat', function (data) {
+//        // we tell the client to execute 'updatechat' with 2 parameters
+//        io.sockets.emit('updatechat', socket.username, data);
+//    });
+//
+//    // when the client emits 'adduser', this listens and executes
+//    socket.on('adduser', function(username){
+//        // we store the username in the socket session for this client
+//        socket.username = username;
+//        // add the client's username to the global list
+//        usernames[username] = username;
+//        // echo to client they've connected
+//        socket.emit('updatechat', 'SERVER', 'you have connected');
+//        // echo globally (all clients) that a person has connected
+//        socket.broadcast.emit('updatechat', 'SERVER', username + ' has connected');
+//        // update the list of users in chat, client-side
+//        io.sockets.emit('updateusers', usernames);
+//    });
+//
+//    // when the user disconnects.. perform this
+//    socket.on('disconnect', function(){
+//        // remove the username from global usernames list
+//        delete usernames[socket.username];
+//        // update list of users in chat, client-side
+//        io.sockets.emit('updateusers', usernames);
+//        // echo globally that this client has left
+//        socket.broadcast.emit('updatechat', 'SERVER', socket.username + ' has disconnected');
+//    });
+//});
