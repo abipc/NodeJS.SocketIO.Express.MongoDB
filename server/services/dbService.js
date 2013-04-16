@@ -37,7 +37,7 @@ db.open(function(err, db) {
         console.log("Connected to 'abiAtWorkDBTest' database");
         db.collection('myCollexn', {safe:true}, function(err, collection) {
             if (err) {
-                console.log("The 'patients' collection doesn't exist. Creating it with sample data...");
+                console.log("The 'myCollexn' collection doesn't exist. Creating it with sample data...");
                 db.collection('myCollexn', function(err, collection) {
                     collection.insert({a:2}, {safe:true}, function(err, result) {});
                 });
